@@ -14,22 +14,33 @@ export class UsersService {
   findByEmail(email: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { email: email.toLowerCase() },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        password: true,
+        bio: true,
+        image: true,
+      },
     });
   }
 
   findById(id: number): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { id } });
+    return this.usersRepository.findOne({
+      where: { id },
+      select: { id: true, username: true, email: true, bio: true, image: true },
+    });
   }
 
   async findTakenFields(
     email: string,
     username: string,
   ): Promise<{ emailTaken: boolean; usernameTaken: boolean }> {
-    const [byEmail, byUsername] = await Promise.all([
-      this.usersRepository.findOne({ where: { email: email.toLowerCase() } }),
-      this.usersRepository.findOne({ where: { username } }),
+    const [emailTaken, usernameTaken] = await Promise.all([
+      this.usersRepository.exists({ where: { email: email.toLowerCase() } }),
+      this.usersRepository.exists({ where: { username } }),
     ]);
-    return { emailTaken: !!byEmail, usernameTaken: !!byUsername };
+    return { emailTaken, usernameTaken };
   }
 
   create(data: CreateUserDto): Promise<User> {
