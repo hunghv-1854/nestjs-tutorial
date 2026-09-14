@@ -25,7 +25,7 @@ Theo spec [RealWorld](https://realworld-docs.netlify.app/implementation-creation
 - [x] Authenticate qua JWT (signup/login, logout)
 - [x] CRU- users (đăng ký & settings — không cần xóa)
 - [x] CRUD Articles
-- [ ] CR-D Comments trên article (không cần update)
+- [x] CR-D Comments trên article (không cần update)
 - [x] GET danh sách articles có phân trang
 - [x] (tùy chọn) Favorite articles
 - [x] (tùy chọn) Follow users khác
@@ -147,6 +147,16 @@ $ curl -X POST http://localhost:3000/api/articles \
   -H "Content-Type: application/json" \
   -d '{"article":{"title":"How to train your dragon","description":"Ever wonder how?","body":"It takes a Jacobian","tagList":["dragons","training"]}}'
 ```
+
+### Comments
+
+| Method | Endpoint                           | Mô tả                     | Cần token        |
+| ------ | ---------------------------------- | ------------------------- | ---------------- |
+| POST   | `/api/articles/:slug/comments`     | Thêm comment vào article  | Có               |
+| GET    | `/api/articles/:slug/comments`     | Lấy danh sách comment     | Không (tuỳ chọn) |
+| DELETE | `/api/articles/:slug/comments/:id` | Xoá comment (chỉ tác giả) | Có               |
+
+Không có API update comment (theo đúng yêu cầu CR-D — không cần Update).
 
 ## Test
 
