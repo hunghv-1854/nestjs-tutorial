@@ -22,7 +22,7 @@
 
 Theo spec [RealWorld](https://realworld-docs.netlify.app/implementation-creation/features/), khuyến khích hoàn thành 5 ý đầu, 2 ý cuối tùy tiến độ:
 
-- [ ] Authenticate qua JWT (signup/login, logout)
+- [x] Authenticate qua JWT (signup/login, logout)
 - [ ] CRU- users (đăng ký & settings — không cần xóa)
 - [ ] CRUD Articles
 - [ ] CR-D Comments trên article (không cần update)
@@ -42,6 +42,20 @@ Copy file env mẫu và chỉnh nếu cần:
 $ cp .env.example .env
 ```
 
+Chạy PostgreSQL và Redis bằng Docker Compose:
+
+```bash
+$ docker compose up -d
+# hoặc, nếu máy chỉ có docker-compose bản standalone:
+$ docker-compose up -d
+```
+
+Chạy migration để tạo schema database (dự án dùng migration thủ công, không dùng `synchronize`):
+
+```bash
+$ npm run migration:run
+```
+
 ## Chạy project
 
 ```bash
@@ -57,8 +71,8 @@ $ npm run start:prod
 
 Sau khi chạy, truy cập:
 
-- API: http://localhost:3000
-- Swagger docs: http://localhost:3000/api
+- API: http://localhost:3000/api (theo spec RealWorld, các route đều có prefix `/api`; riêng route hello world `/` không có prefix)
+- Swagger docs: http://localhost:3000/docs
 
 ### i18n
 
@@ -66,6 +80,23 @@ Ngôn ngữ trả về được resolve theo thứ tự: query `?lang=vi`, heade
 
 ```bash
 $ curl "http://localhost:3000/?lang=vi"
+```
+
+### Authentication
+
+Đăng ký, đăng nhập, đăng xuất và lấy thông tin user hiện tại. Token JWT gửi qua header `Authorization: Token <jwt>`. Khi logout, token bị đưa vào blacklist trong Redis (theo TTL còn lại) nên không thể dùng lại dù chưa hết hạn.
+
+| Method | Endpoint           | Mô tả                       | Cần token |
+| ------ | ------------------ | --------------------------- | --------- |
+| POST   | `/api/users`       | Đăng ký                     | Không     |
+| POST   | `/api/users/login` | Đăng nhập                   | Không     |
+| GET    | `/api/user`        | Lấy thông tin user hiện tại | Có        |
+| POST   | `/api/user/logout` | Đăng xuất (blacklist token) | Có        |
+
+```bash
+$ curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"user":{"username":"hung","email":"hung@example.com","password":"password123"}}'
 ```
 
 ## Test
@@ -79,6 +110,24 @@ $ npm run test:e2e
 
 # test coverage
 $ npm run test:cov
+```
+
+## Database migration
+
+Dự án dùng migration TypeORM thủ công (`synchronize: false`), không tự đồng bộ schema từ entity.
+
+```bash
+# tạo migration mới, rỗng
+$ npm run migration:create -- src/database/migrations/<Name>
+
+# sinh migration từ diff giữa entity và database hiện tại
+$ npm run migration:generate -- src/database/migrations/<Name>
+
+# áp dụng các migration chưa chạy
+$ npm run migration:run
+
+# revert migration gần nhất
+$ npm run migration:revert
 ```
 
 ## Lint & format
