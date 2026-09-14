@@ -171,6 +171,21 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+### E2E testing
+
+E2e test chạy trên một **database riêng** (không đụng vào DB dùng để dev), cấu hình qua `.env.test`:
+
+```bash
+$ cp .env.test.example .env.test
+$ docker exec -it nestjs_tutorial_db psql -U postgres -c "CREATE DATABASE nestjs_tutorial_test;"
+```
+
+`npm run test:e2e` tự set `NODE_ENV=test` (nên app đọc `.env.test` thay vì `.env`) và tự chạy migration vào DB test trước khi test (`pretest:e2e`) — không cần làm thủ công mỗi lần.
+
+Từng test case tự seed dữ liệu giả cần thiết (qua `test/utils/fixtures.util.ts`, gọi thẳng API đăng ký) ở đầu test, và toàn bộ bảng được `TRUNCATE ... RESTART IDENTITY CASCADE` (`test/utils/database.util.ts`) sau mỗi test case (`afterEach`) — mỗi test luôn bắt đầu từ trạng thái sạch, không phụ thuộc thứ tự chạy.
+
+`test/auth.e2e-spec.ts` là ví dụ e2e test ở mức **condition coverage (C2)** cho `AuthController`: mỗi nhánh điều kiện của từng endpoint (mọi rule validate, mọi điều kiện trùng lặp/thất bại, và luồng thành công) đều có ít nhất 1 test case, không chỉ test happy path.
+
 ## Database migration
 
 Dự án dùng migration TypeORM thủ công (`synchronize: false`), không tự đồng bộ schema từ entity.
