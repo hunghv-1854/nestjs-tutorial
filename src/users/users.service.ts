@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './user.entity';
 
@@ -30,6 +30,11 @@ export class UsersService {
 
   findById(id: number): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
+  }
+
+  findByIds(ids: number[]): Promise<User[]> {
+    if (!ids.length) return Promise.resolve([]);
+    return this.usersRepository.find({ where: { id: In(ids) } });
   }
 
   async findTakenFields(
