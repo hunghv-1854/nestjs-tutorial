@@ -2,7 +2,7 @@ import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { I18nService } from 'nestjs-i18n';
-import { DataSource, Not, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 import { AttachableType } from '../attachments/attachment.entity';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { AVATARS_URL_PREFIX } from '../common/public-dir.constants';
@@ -52,6 +52,14 @@ export class UsersService {
     return this.usersRepository.findOne({
       where: { id },
       select: { id: true, username: true, email: true, bio: true, image: true },
+    });
+  }
+
+  findByIds(ids: number[]): Promise<User[]> {
+    if (!ids.length) return Promise.resolve([]);
+    return this.usersRepository.find({
+      where: { id: In(ids) },
+      select: { id: true, username: true, bio: true, image: true },
     });
   }
 

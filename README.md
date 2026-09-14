@@ -24,10 +24,10 @@ Theo spec [RealWorld](https://realworld-docs.netlify.app/implementation-creation
 
 - [x] Authenticate qua JWT (signup/login, logout)
 - [x] CRU- users (đăng ký & settings — không cần xóa)
-- [ ] CRUD Articles
+- [x] CRUD Articles
 - [ ] CR-D Comments trên article (không cần update)
-- [ ] GET danh sách articles có phân trang
-- [ ] (tùy chọn) Favorite articles
+- [x] GET danh sách articles có phân trang
+- [x] (tùy chọn) Favorite articles
 - [x] (tùy chọn) Follow users khác
 
 ## Cài đặt
@@ -125,6 +125,28 @@ $ curl -X POST http://localhost:3000/api/user/avatar \
 | GET    | `/api/profiles/:username`        | Xem profile   | Không (tuỳ chọn — có token thì trả đúng `following`) |
 | POST   | `/api/profiles/:username/follow` | Follow user   | Có                                                   |
 | DELETE | `/api/profiles/:username/follow` | Unfollow user | Có                                                   |
+
+### Articles
+
+| Method | Endpoint                       | Mô tả                                                                         | Cần token        |
+| ------ | ------------------------------ | ----------------------------------------------------------------------------- | ---------------- |
+| POST   | `/api/articles`                | Tạo article                                                                   | Có               |
+| GET    | `/api/articles`                | List article (filter `tag`/`author`/`favorited`, phân trang `limit`/`offset`) | Không (tuỳ chọn) |
+| GET    | `/api/articles/feed`           | Article của những người đang follow                                           | Có               |
+| GET    | `/api/articles/:slug`          | Xem 1 article                                                                 | Không (tuỳ chọn) |
+| PUT    | `/api/articles/:slug`          | Cập nhật article (chỉ tác giả)                                                | Có               |
+| DELETE | `/api/articles/:slug`          | Xoá article (chỉ tác giả)                                                     | Có               |
+| POST   | `/api/articles/:slug/favorite` | Favorite article                                                              | Có               |
+| DELETE | `/api/articles/:slug/favorite` | Unfavorite article                                                            | Có               |
+
+`slug` sinh tự động từ `title` (kèm hậu tố ngẫu nhiên để tránh trùng), không đổi khi update title. `tagList` là mảng string lưu trực tiếp trên bảng `articles` (Postgres array column) thay vì bảng tag riêng. `favoritesCount`/`favorited` tính động qua query, không lưu counter riêng.
+
+```bash
+$ curl -X POST http://localhost:3000/api/articles \
+  -H "Authorization: Token <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"article":{"title":"How to train your dragon","description":"Ever wonder how?","body":"It takes a Jacobian","tagList":["dragons","training"]}}'
+```
 
 ## Test
 
