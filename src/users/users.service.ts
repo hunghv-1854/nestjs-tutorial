@@ -4,6 +4,13 @@ import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './user.entity';
 
+interface TakenFieldsQuery {
+  email?: string;
+  username?: string;
+  /** Exclude this user's own row — used when checking conflicts during an update. */
+  excludeId?: number;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -17,19 +24,32 @@ export class UsersService {
     });
   }
 
+  findByUsername(username: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { username } });
+  }
+
   findById(id: number): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
   }
 
   async findTakenFields(
-    email: string,
-    username: string,
+    query: TakenFieldsQuery,
   ): Promise<{ emailTaken: boolean; usernameTaken: boolean }> {
     const [byEmail, byUsername] = await Promise.all([
-      this.usersRepository.findOne({ where: { email: email.toLowerCase() } }),
-      this.usersRepository.findOne({ where: { username } }),
+      query.email
+        ? this.usersRepository.findOne({
+            where: { email: query.email.toLowerCase() },
+          })
+        : null,
+      query.username
+        ? this.usersRepository.findOne({ where: { username: query.username } })
+        : null,
     ]);
-    return { emailTaken: !!byEmail, usernameTaken: !!byUsername };
+
+    return {
+      emailTaken: !!byEmail && byEmail.id !== query.excludeId,
+      usernameTaken: !!byUsername && byUsername.id !== query.excludeId,
+    };
   }
 
   create(data: CreateUserDto): Promise<User> {
@@ -37,6 +57,10 @@ export class UsersService {
       ...data,
       email: data.email.toLowerCase(),
     });
+    return this.usersRepository.save(user);
+  }
+
+  save(user: User): Promise<User> {
     return this.usersRepository.save(user);
   }
 }
