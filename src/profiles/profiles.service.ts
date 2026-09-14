@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nService } from 'nestjs-i18n';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { Follow } from './follow.entity';
@@ -63,6 +63,28 @@ export class ProfilesService {
       followingId: target.id,
     });
     return this.buildResponse(target, false);
+  }
+
+  /**
+   * Which of `candidateIds` does `followerId` follow? Used to batch-resolve
+   * "following" flags for a list of authors (e.g. an article feed) in one query.
+   */
+  async getFollowingIds(
+    followerId: number | undefined,
+    candidateIds: number[],
+  ): Promise<Set<number>> {
+    if (!followerId || !candidateIds.length) return new Set();
+
+    const rows = await this.followsRepository.find({
+      where: { followerId, followingId: In(candidateIds) },
+    });
+    return new Set(rows.map((row) => row.followingId));
+  }
+
+  /** All user ids that `followerId` currently follows. */
+  async getAllFollowingIds(followerId: number): Promise<Set<number>> {
+    const rows = await this.followsRepository.find({ where: { followerId } });
+    return new Set(rows.map((row) => row.followingId));
   }
 
   private async findUserOrFail(username: string): Promise<User> {
