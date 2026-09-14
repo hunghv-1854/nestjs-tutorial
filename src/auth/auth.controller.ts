@@ -3,18 +3,31 @@ import {
   Controller,
   Get,
   HttpCode,
+  ParseFilePipeBuilder,
   Post,
+  Put,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { User } from '../users/user.entity';
+import { avatarUploadOptions } from './avatar-upload.options';
 import { AuthService } from './auth.service';
 import type { UserResponse } from './auth.types';
 import { AuthToken } from './decorators/auth-token.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -41,6 +54,37 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   getCurrentUser(@CurrentUser() user: User): UserResponse {
     return this.authService.buildUserResponse(user);
+  }
+
+  @ApiOperation({ summary: 'Update the current user' })
+  @ApiSecurity('token')
+  @Put('user')
+  @UseGuards(JwtAuthGuard)
+  updateUser(
+    @CurrentUser() user: User,
+    @Body() dto: UpdateUserDto,
+  ): Promise<UserResponse> {
+    return this.authService.updateUser(user, dto.user);
+  }
+
+  @ApiOperation({ summary: "Upload the current user's avatar" })
+  @ApiSecurity('token')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { avatar: { type: 'string', format: 'binary' } },
+    },
+  })
+  @Post('user/avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('avatar', avatarUploadOptions))
+  updateAvatar(
+    @CurrentUser() user: User,
+    @UploadedFile(new ParseFilePipeBuilder().build({ fileIsRequired: true }))
+    file: Express.Multer.File,
+  ): Promise<UserResponse> {
+    return this.authService.updateAvatar(user, file);
   }
 
   @ApiOperation({ summary: 'Log out the current session' })

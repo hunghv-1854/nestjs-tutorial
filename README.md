@@ -23,12 +23,12 @@
 Theo spec [RealWorld](https://realworld-docs.netlify.app/implementation-creation/features/), khuyến khích hoàn thành 5 ý đầu, 2 ý cuối tùy tiến độ:
 
 - [x] Authenticate qua JWT (signup/login, logout)
-- [ ] CRU- users (đăng ký & settings — không cần xóa)
+- [x] CRU- users (đăng ký & settings — không cần xóa)
 - [ ] CRUD Articles
 - [ ] CR-D Comments trên article (không cần update)
 - [ ] GET danh sách articles có phân trang
 - [ ] (tùy chọn) Favorite articles
-- [ ] (tùy chọn) Follow users khác
+- [x] (tùy chọn) Follow users khác
 
 ## Cài đặt
 
@@ -98,6 +98,33 @@ $ curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{"user":{"username":"hung","email":"hung@example.com","password":"password123"}}'
 ```
+
+### Update user & avatar
+
+`PUT /api/user` cập nhật email/username/password/bio/image. Avatar upload là API riêng do đề bài yêu cầu quản lý file local (không có trong spec gốc RealWorld):
+
+| Method | Endpoint           | Mô tả                     | Cần token |
+| ------ | ------------------ | ------------------------- | --------- |
+| PUT    | `/api/user`        | Cập nhật thông tin user   | Có        |
+| POST   | `/api/user/avatar` | Upload avatar (multipart) | Có        |
+
+Avatar được lưu **public** — file nằm ở `public/uploads/avatars/`, serve trực tiếp qua `ServeStaticModule` tại `/uploads/avatars/<file>`, ai có link cũng xem được (giống cách RealWorld demo thật hiển thị avatar). Mỗi lần upload mới sẽ xoá avatar cũ (cả record trong bảng `attachments` lẫn file trên đĩa).
+
+Bảng `attachments` thiết kế polymorphic (`attachable_type` + `attachable_id`) để dùng chung cho nhiều loại đối tượng đính kèm sau này (không chỉ avatar user), khoá chính là UUID để không thể đoán/scan được id.
+
+```bash
+$ curl -X POST http://localhost:3000/api/user/avatar \
+  -H "Authorization: Token <jwt>" \
+  -F "avatar=@/path/to/avatar.png;type=image/png"
+```
+
+### Profile & Follow
+
+| Method | Endpoint                         | Mô tả         | Cần token                                            |
+| ------ | -------------------------------- | ------------- | ---------------------------------------------------- |
+| GET    | `/api/profiles/:username`        | Xem profile   | Không (tuỳ chọn — có token thì trả đúng `following`) |
+| POST   | `/api/profiles/:username/follow` | Follow user   | Có                                                   |
+| DELETE | `/api/profiles/:username/follow` | Unfollow user | Có                                                   |
 
 ## Test
 
