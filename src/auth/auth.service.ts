@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -10,7 +6,6 @@ import { I18nService } from 'nestjs-i18n';
 import { RedisService } from '../redis/redis.service';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
-import { PASSWORD_SALT_ROUNDS } from './auth.constants';
 import { JwtPayload, UserResponse } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -25,12 +20,10 @@ export class AuthService {
   ) {}
 
   async register({ user }: RegisterDto): Promise<UserResponse> {
-    await this.assertEmailAndUsernameAreFree(user.email, user.username);
-
     const created = await this.usersService.create({
       username: user.username,
       email: user.email,
-      password: await this.hashPassword(user.password),
+      password: user.password,
     });
     return this.buildUserResponse(created);
   }
@@ -79,25 +72,5 @@ export class AuthService {
         image: user.image,
       },
     };
-  }
-
-  private async assertEmailAndUsernameAreFree(
-    email: string,
-    username: string,
-  ): Promise<void> {
-    const { emailTaken, usernameTaken } =
-      await this.usersService.findTakenFields(email, username);
-
-    const errors: Record<string, string[]> = {};
-    if (emailTaken) errors.email = [this.i18n.t('auth.email_taken')];
-    if (usernameTaken) errors.username = [this.i18n.t('auth.username_taken')];
-
-    if (Object.keys(errors).length) {
-      throw new UnprocessableEntityException({ errors });
-    }
-  }
-
-  private hashPassword(plain: string): Promise<string> {
-    return bcrypt.hash(plain, PASSWORD_SALT_ROUNDS);
   }
 }
