@@ -1,8 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { I18nService } from 'nestjs-i18n';
+import { DataSource, Not, Repository } from 'typeorm';
+import { AttachableType } from '../attachments/attachment.entity';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { AVATARS_URL_PREFIX } from '../common/public-dir.constants';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserFieldsDto } from './dto/update-user.dto';
 import { User } from './user.entity';
+import { PASSWORD_SALT_ROUNDS } from './users.constants';
 
 interface TakenFieldsQuery {
   email?: string;
@@ -15,6 +22,9 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    private readonly attachmentsService: AttachmentsService,
+    private readonly dataSource: DataSource,
+    private readonly i18n: I18nService,
   ) {}
 
   findByEmail(email: string): Promise<User | null> {
@@ -45,9 +55,78 @@ export class UsersService {
     });
   }
 
-  async findTakenFields(
+  async create(data: CreateUserDto): Promise<User> {
+    await this.assertEmailAndUsernameAreFree({
+      email: data.email,
+      username: data.username,
+    });
+
+    const user = this.usersRepository.create({
+      ...data,
+      email: data.email.toLowerCase(),
+      password: await this.hashPassword(data.password),
+    });
+    return this.usersRepository.save(user);
+  }
+
+  async updateProfile(user: User, changes: UpdateUserFieldsDto): Promise<User> {
+    await this.assertEmailAndUsernameAreFree({
+      email: changes.email,
+      username: changes.username,
+      excludeId: user.id,
+    });
+
+    if (changes.username !== undefined) user.username = changes.username;
+    if (changes.email !== undefined) user.email = changes.email.toLowerCase();
+    if (changes.bio !== undefined) user.bio = changes.bio;
+    if (changes.image !== undefined) user.image = changes.image;
+    if (changes.password !== undefined) {
+      user.password = await this.hashPassword(changes.password);
+    }
+
+    return this.usersRepository.save(user);
+  }
+
+  async updateAvatar(user: User, file: Express.Multer.File): Promise<User> {
+    const uploadedUrl = `${AVATARS_URL_PREFIX}/${file.filename}`;
+    const previousAttachments = await this.attachmentsService.findAllFor(
+      AttachableType.USER,
+      user.id,
+    );
+
+    let updated: User;
+    try {
+      updated = await this.dataSource.transaction(async (manager) => {
+        const attachment = await this.attachmentsService.attach(
+          {
+            attachableType: AttachableType.USER,
+            attachableId: user.id,
+            url: uploadedUrl,
+            fileName: file.originalname,
+            fileType: file.mimetype,
+            fileSize: file.size,
+          },
+          manager,
+        );
+
+        user.image = attachment.url;
+        return manager.getRepository(User).save(user);
+      });
+    } catch (error) {
+      // FileInterceptor already saved this file to disk before the
+      // transaction ran, so a failed transaction must clean it up itself.
+      await this.attachmentsService.deleteFile(uploadedUrl);
+      throw error;
+    }
+
+    await this.attachmentsService.removeAndDeleteFiles(previousAttachments);
+
+    return updated;
+  }
+
+  private async assertEmailAndUsernameAreFree(
     query: TakenFieldsQuery,
-  ): Promise<{ emailTaken: boolean; usernameTaken: boolean }> {
+  ): Promise<void> {
     const [emailTaken, usernameTaken] = await Promise.all([
       query.email
         ? this.usersRepository.exists({
@@ -71,18 +150,16 @@ export class UsersService {
         : false,
     ]);
 
-    return { emailTaken, usernameTaken };
+    const errors: Record<string, string[]> = {};
+    if (emailTaken) errors.email = [this.i18n.t('auth.email_taken')];
+    if (usernameTaken) errors.username = [this.i18n.t('auth.username_taken')];
+
+    if (Object.keys(errors).length) {
+      throw new UnprocessableEntityException({ errors });
+    }
   }
 
-  create(data: CreateUserDto): Promise<User> {
-    const user = this.usersRepository.create({
-      ...data,
-      email: data.email.toLowerCase(),
-    });
-    return this.usersRepository.save(user);
-  }
-
-  save(user: User): Promise<User> {
-    return this.usersRepository.save(user);
+  private hashPassword(plain: string): Promise<string> {
+    return bcrypt.hash(plain, PASSWORD_SALT_ROUNDS);
   }
 }

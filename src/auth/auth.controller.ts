@@ -20,6 +20,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { User } from '../users/user.entity';
+import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { UsersService } from '../users/users.service';
 import { avatarUploadOptions } from './avatar-upload.options';
 import { AuthService } from './auth.service';
 import type { UserResponse } from './auth.types';
@@ -27,13 +29,15 @@ import { AuthToken } from './decorators/auth-token.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller()
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @ApiOperation({ summary: 'Register a new user' })
   @Post('users')
@@ -60,11 +64,12 @@ export class AuthController {
   @ApiSecurity('token')
   @Put('user')
   @UseGuards(JwtAuthGuard)
-  updateUser(
+  async updateUser(
     @CurrentUser() user: User,
     @Body() dto: UpdateUserDto,
   ): Promise<UserResponse> {
-    return this.authService.updateUser(user, dto.user);
+    const updated = await this.usersService.updateProfile(user, dto.user);
+    return this.authService.buildUserResponse(updated);
   }
 
   @ApiOperation({ summary: "Upload the current user's avatar" })
@@ -79,12 +84,13 @@ export class AuthController {
   @Post('user/avatar')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('avatar', avatarUploadOptions))
-  updateAvatar(
+  async updateAvatar(
     @CurrentUser() user: User,
     @UploadedFile(new ParseFilePipeBuilder().build({ fileIsRequired: true }))
     file: Express.Multer.File,
   ): Promise<UserResponse> {
-    return this.authService.updateAvatar(user, file);
+    const updated = await this.usersService.updateAvatar(user, file);
+    return this.authService.buildUserResponse(updated);
   }
 
   @ApiOperation({ summary: 'Log out the current session' })

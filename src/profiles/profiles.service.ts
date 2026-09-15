@@ -80,10 +80,9 @@ export class ProfilesService {
     followingId: number,
   ): Promise<boolean> {
     if (!followerId) return false;
-    const existing = await this.followsRepository.findOne({
+    return this.followsRepository.exists({
       where: { followerId, followingId },
     });
-    return !!existing;
   }
 
   private buildResponse(user: User, following: boolean): ProfileResponse {

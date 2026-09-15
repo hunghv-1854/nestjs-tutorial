@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { PUBLIC_DIR } from '../common/public-dir.constants';
 import { AttachAttachmentDto } from './dto/attach-attachment.dto';
 import { Attachment, AttachableType } from './attachment.entity';
@@ -16,9 +16,15 @@ export class AttachmentsService {
     private readonly attachmentsRepository: Repository<Attachment>,
   ) {}
 
-  attach(dto: AttachAttachmentDto): Promise<Attachment> {
-    const attachment = this.attachmentsRepository.create(dto);
-    return this.attachmentsRepository.save(attachment);
+  attach(
+    dto: AttachAttachmentDto,
+    manager?: EntityManager,
+  ): Promise<Attachment> {
+    const repository = manager
+      ? manager.getRepository(Attachment)
+      : this.attachmentsRepository;
+    const attachment = repository.create(dto);
+    return repository.save(attachment);
   }
 
   findAllFor(
@@ -27,6 +33,7 @@ export class AttachmentsService {
   ): Promise<Attachment[]> {
     return this.attachmentsRepository.find({
       where: { attachableType, attachableId },
+      select: { id: true, url: true },
     });
   }
 

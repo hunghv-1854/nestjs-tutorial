@@ -3,10 +3,11 @@ import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
-import { AVATARS_DIR } from '../common/public-dir.constants';
-
-const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
-const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+import {
+  ALLOWED_AVATAR_MIME_TYPES,
+  AVATARS_DIR,
+  MAX_AVATAR_SIZE_BYTES,
+} from '../common/public-dir.constants';
 
 export const avatarUploadOptions: MulterOptions = {
   storage: diskStorage({
@@ -17,7 +18,7 @@ export const avatarUploadOptions: MulterOptions = {
   }),
   limits: { fileSize: MAX_AVATAR_SIZE_BYTES },
   fileFilter: (_req, file, callback) => {
-    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+    if (!ALLOWED_AVATAR_MIME_TYPES.has(file.mimetype)) {
       callback(new BadRequestException('Unsupported image type'), false);
       return;
     }
