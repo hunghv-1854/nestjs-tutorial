@@ -254,13 +254,10 @@ export class ArticlesService {
     ]);
     const authorsById = new Map(authors.map((user) => [user.id, user]));
 
-    return articles.map((article) => {
+    return articles.flatMap((article) => {
       const author = authorsById.get(article.authorId);
-      if (!author) {
-        throw new NotFoundException({
-          errors: { slug: [this.i18n.t('articles.not_found')] },
-        });
-      }
+      if (!author) return [];
+
       const stats = favoriteStats.get(article.id);
       return {
         slug: article.slug,
